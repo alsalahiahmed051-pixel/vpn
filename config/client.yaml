@@ -1,0 +1,29 @@
+# VPN client configuration
+# انسخ هذا الملف باسم client.yaml وعدّل القيم
+# Copy this file to client.yaml and customize.
+
+# عنوان السيرفر (IP أو domain)
+server_host: "your-server.example.com"
+server_port: 51820
+
+# اسم واجهة TUN
+tun_name: "vpn0"
+
+# عنوان العميل داخل الـ tunnel
+# يجب أن يكون فريداً لكل عميل (10.8.0.2, 10.8.0.3, ...)
+# Each client must have a unique IP in the tunnel subnet.
+tun_ip: "10.8.0.2/24"
+
+mtu: 1400
+keepalive_seconds: 25
+
+# عند true: كل تراففيك الإنترنت يمر عبر الـ VPN (مثل full-tunnel)
+# عند false: فقط شبكة الـ tunnel (split-tunnel)
+# When true: route ALL traffic through VPN (full-tunnel mode).
+route_all_traffic: false
+
+log_level: "INFO"
+
+# ⚠️ نفس كلمة السر المستخدمة في السيرفر
+# ⚠️ MUST match the server's password.
+password: "CHANGE-ME-to-a-long-random-secret"
