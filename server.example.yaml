@@ -1,0 +1,30 @@
+# VPN server configuration
+# انسخ هذا الملف باسم server.yaml وعدّل القيم
+# Copy this file to server.yaml and customize.
+
+# عنوان الاستماع (0.0.0.0 = كل الواجهات) - Listen address
+listen: "0.0.0.0"
+
+# المنفذ - UDP port (must be open in firewall)
+port: 51820
+
+# اسم واجهة TUN
+tun_name: "vpn0"
+
+# عنوان الـ tunnel للسيرفر داخل الشبكة الافتراضية
+# Server's address inside the VPN tunnel network
+tun_ip: "10.8.0.1/24"
+
+# Maximum Transmission Unit - 1400 آمن لتفادي الـ fragmentation
+mtu: 1400
+
+# مدة الـ keepalive بالثواني
+keepalive_seconds: 25
+
+# مستوى السجلات: DEBUG | INFO | WARNING | ERROR
+log_level: "INFO"
+
+# ⚠️ كلمة السر المشتركة بين السيرفر والعميل
+# ⚠️ Shared secret. Use a long random string in production.
+# توليد آمن: openssl rand -hex 32
+password: "CHANGE-ME-to-a-long-random-secret"
