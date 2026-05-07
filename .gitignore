@@ -1,0 +1,5 @@
+.venv/
+__pycache__/
+vpn/__pycache__/
+config/server.yaml
+config/client.yaml
