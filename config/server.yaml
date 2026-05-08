@@ -27,4 +27,4 @@ log_level: "INFO"
 # ⚠️ كلمة السر المشتركة بين السيرفر والعميل
 # ⚠️ Shared secret. Use a long random string in production.
 # توليد آمن: openssl rand -hex 32
-password: "CHANGE-ME-to-a-long-random-secret"
+password: "a0f73a8711a75e80413bb9693fac5fe15229e6ebe781052c4d449e8d8e224b22"

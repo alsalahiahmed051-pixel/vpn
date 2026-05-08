@@ -1,6 +1,5 @@
 package com.vpn
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -8,10 +7,11 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.net.VpnService
-import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.widget.*
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.TextView
 
 class MainActivity : Activity() {
 
@@ -26,8 +26,6 @@ class MainActivity : Activity() {
 
     private var connected = false
     private val VPN_REQUEST = 1
-
-    // -------------------------------------------------------------------------
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context, intent: Intent) {
@@ -45,21 +43,20 @@ class MainActivity : Activity() {
         }
     }
 
-    // -------------------------------------------------------------------------
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         prefs = getSharedPreferences("vpn_prefs", Context.MODE_PRIVATE)
 
-        etServer   = findViewById(R.id.et_server)
-        etPort     = findViewById(R.id.et_port)
-        etPassword = findViewById(R.id.et_password)
-        etTunIp    = findViewById(R.id.et_tun_ip)
-        cbRouteAll = findViewById(R.id.cb_route_all)
-        btnConnect = findViewById(R.id.btn_connect)
-        tvStatus   = findViewById(R.id.tv_status)
+        // Explicit casts needed for API 23 (findViewById returns View, not generic T)
+        etServer   = findViewById(R.id.et_server)    as EditText
+        etPort     = findViewById(R.id.et_port)      as EditText
+        etPassword = findViewById(R.id.et_password)  as EditText
+        etTunIp    = findViewById(R.id.et_tun_ip)    as EditText
+        cbRouteAll = findViewById(R.id.cb_route_all) as CheckBox
+        btnConnect = findViewById(R.id.btn_connect)  as Button
+        tvStatus   = findViewById(R.id.tv_status)    as TextView
 
         loadPrefs()
 
@@ -68,24 +65,17 @@ class MainActivity : Activity() {
         }
     }
 
-    @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onResume() {
         super.onResume()
-        val filter = IntentFilter("com.vpn.VPN_STATUS")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(statusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(statusReceiver, filter)
-        }
+        @Suppress("UnspecifiedRegisterReceiverFlag")
+        registerReceiver(statusReceiver, IntentFilter("com.vpn.VPN_STATUS"))
     }
 
     override fun onPause() {
         super.onPause()
         savePrefs()
-        try { unregisterReceiver(statusReceiver) } catch (_: Exception) { }
+        try { unregisterReceiver(statusReceiver) } catch (e: Exception) { /* ok */ }
     }
-
-    // -------------------------------------------------------------------------
 
     private fun requestVpnPermission() {
         val intent = VpnService.prepare(this)
@@ -93,11 +83,11 @@ class MainActivity : Activity() {
         else onActivityResult(VPN_REQUEST, RESULT_OK, null)
     }
 
-    @Deprecated("Deprecated in Java")
+    @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == VPN_REQUEST) {
             if (resultCode == RESULT_OK) startVpn()
-            else updateStatus("تم رفض إذن VPN / Permission denied", false)
+            else setStatus("تم رفض إذن VPN / Permission denied", false)
         }
     }
 
@@ -108,26 +98,23 @@ class MainActivity : Activity() {
         val tunIp    = etTunIp.text.toString().trim()
 
         if (server.isEmpty() || password.isEmpty() || tunIp.isEmpty()) {
-            updateStatus("الرجاء ملء جميع الحقول / Fill all fields", false)
+            setStatus("الرجاء ملء جميع الحقول / Fill all fields", false)
             return
         }
-
-        val port = portStr.toIntOrNull() ?: 51820
 
         startService(
             Intent(this, MyVpnService::class.java).apply {
                 action = MyVpnService.ACTION_CONNECT
                 putExtra(MyVpnService.EXTRA_SERVER,    server)
-                putExtra(MyVpnService.EXTRA_PORT,      port)
+                putExtra(MyVpnService.EXTRA_PORT,      portStr.toIntOrNull() ?: 51820)
                 putExtra(MyVpnService.EXTRA_PASSWORD,  password)
                 putExtra(MyVpnService.EXTRA_TUN_IP,    tunIp)
                 putExtra(MyVpnService.EXTRA_ROUTE_ALL, cbRouteAll.isChecked)
             }
         )
-
         connected = true
         tvStatus.setTextColor(0xFF1565C0.toInt())
-        updateStatus("⏳ جارٍ الاتصال... / Connecting...", true)
+        setStatus("⏳ جارٍ الاتصال... / Connecting...", true)
     }
 
     private fun stopVpn() {
@@ -138,18 +125,16 @@ class MainActivity : Activity() {
         )
         connected = false
         tvStatus.setTextColor(0xFF616161.toInt())
-        updateStatus("غير متصل / Disconnected", false)
+        setStatus("غير متصل / Disconnected", false)
     }
 
-    private fun updateStatus(msg: String, isConnecting: Boolean) {
+    private fun setStatus(msg: String, isConnected: Boolean) {
         tvStatus.text = msg
-        btnConnect.text = if (connected) "قطع الاتصال / Disconnect" else "اتصال / Connect"
+        btnConnect.text = if (isConnected) "قطع الاتصال / Disconnect" else "اتصال / Connect"
         btnConnect.setBackgroundColor(
-            if (connected) 0xFFC62828.toInt() else 0xFF1A237E.toInt()
+            if (isConnected) 0xFFC62828.toInt() else 0xFF1A237E.toInt()
         )
     }
-
-    // -------------------------------------------------------------------------
 
     private fun savePrefs() {
         prefs.edit()
@@ -161,9 +146,9 @@ class MainActivity : Activity() {
     }
 
     private fun loadPrefs() {
-        etServer.setText(prefs.getString("server",    ""))
-        etPort.setText(prefs.getString("port",        "51820"))
-        etTunIp.setText(prefs.getString("tun_ip",     "10.8.0.2"))
+        etServer.setText(prefs.getString("server",  ""))
+        etPort.setText(prefs.getString("port",      "51820"))
+        etTunIp.setText(prefs.getString("tun_ip",   "10.8.0.2"))
         cbRouteAll.isChecked = prefs.getBoolean("route_all", false)
     }
 }

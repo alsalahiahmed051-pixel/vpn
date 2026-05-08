@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.vpn"
-    compileSdk = 34
+    compileSdk = 23
 
     defaultConfig {
         applicationId = "com.vpn"
-        minSdk = 26
-        targetSdk = 34
+        minSdk = 21
+        targetSdk = 23
         versionCode = 1
         versionName = "1.0"
     }
@@ -29,16 +29,15 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "1.8"
     }
 }
 
 dependencies {
-    // Bouncy Castle for scrypt KDF (matches Python server)
     implementation("org.bouncycastle:bcprov-jdk15on:1.70")
 }

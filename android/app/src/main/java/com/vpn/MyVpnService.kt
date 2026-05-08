@@ -1,13 +1,9 @@
 package com.vpn
 
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.net.VpnService
-import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import java.io.FileInputStream
@@ -28,16 +24,13 @@ class MyVpnService : VpnService() {
         const val EXTRA_PASSWORD    = "password"
         const val EXTRA_TUN_IP      = "tun_ip"
         const val EXTRA_ROUTE_ALL   = "route_all"
-        private const val NOTIF_CHANNEL = "vpn_channel"
-        private const val NOTIF_ID      = 1
+        private const val NOTIF_ID  = 1
     }
 
     private var vpnInterface: ParcelFileDescriptor? = null
     private var udpSocket: DatagramSocket? = null
     private val running = AtomicBoolean(false)
     private var tunnelThread: Thread? = null
-
-    // -------------------------------------------------------------------------
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISCONNECT) {
@@ -51,7 +44,7 @@ class MyVpnService : VpnService() {
         val tunIp    = intent.getStringExtra(EXTRA_TUN_IP)    ?: "10.8.0.2"
         val routeAll = intent.getBooleanExtra(EXTRA_ROUTE_ALL, false)
 
-        createNotificationChannel()
+        @Suppress("DEPRECATION")
         startForeground(NOTIF_ID, buildNotification())
         connect(server, port, password, tunIp, routeAll)
         return START_STICKY
@@ -62,8 +55,6 @@ class MyVpnService : VpnService() {
         super.onDestroy()
     }
 
-    // -------------------------------------------------------------------------
-
     private fun connect(
         server: String, port: Int, password: String,
         tunIp: String, routeAll: Boolean
@@ -72,18 +63,15 @@ class MyVpnService : VpnService() {
 
         tunnelThread = Thread {
             try {
-                // 1. Derive key (slow scrypt — runs once on background thread)
                 val key    = CryptoEngine.deriveKey(password)
                 val cipher = CryptoEngine.SessionCipher(key)
 
                 val serverAddr = InetAddress.getByName(server)
 
-                // 2. UDP socket — must be protected BEFORE any data is sent
                 val sock = DatagramSocket()
                 protect(sock)
                 udpSocket = sock
 
-                // 3. Build TUN interface
                 val builder = Builder()
                     .setSession("PythonVPN")
                     .addAddress(tunIp, 24)
@@ -105,13 +93,13 @@ class MyVpnService : VpnService() {
                 val tunIn  = FileInputStream(tun.fileDescriptor)
                 val tunOut = FileOutputStream(tun.fileDescriptor)
 
-                // 4. Handshake: tell server our tunnel IP
-                val ipBytes      = InetAddress.getByName(tunIp).address
-                val hsEncrypted  = cipher.encrypt(Protocol.pack(Protocol.TYPE_HANDSHAKE, ipBytes))
+                // Handshake
+                val ipBytes     = InetAddress.getByName(tunIp).address
+                val hsEncrypted = cipher.encrypt(Protocol.pack(Protocol.TYPE_HANDSHAKE, ipBytes))
                 sock.send(DatagramPacket(hsEncrypted, hsEncrypted.size, serverAddr, port))
                 Log.i(TAG, "Handshake sent → $server:$port  tunIP=$tunIp")
 
-                // 5. TUN → UDP (background daemon)
+                // TUN → UDP
                 Thread {
                     val buf = ByteArray(65535)
                     while (running.get()) {
@@ -129,20 +117,21 @@ class MyVpnService : VpnService() {
                     }
                 }.also { it.isDaemon = true; it.start() }
 
-                // 6. Keepalive (background daemon)
+                // Keepalive
                 Thread {
                     while (running.get()) {
                         try {
                             Thread.sleep(25_000)
                             val enc = cipher.encrypt(Protocol.pack(Protocol.TYPE_KEEPALIVE))
                             sock.send(DatagramPacket(enc, enc.size, serverAddr, port))
-                        } catch (_: Exception) { }
+                        } catch (e: Exception) {
+                            Log.v(TAG, "keepalive: $e")
+                        }
                     }
                 }.also { it.isDaemon = true; it.start() }
 
-                // 7. UDP → TUN (main loop)
-                Log.i(TAG, "Tunnel up — routeAll=$routeAll")
-                broadcast(null) // signal success (null = no error)
+                // UDP → TUN
+                broadcast(null)
                 sock.soTimeout = 2000
                 val recvBuf = ByteArray(65535)
                 while (running.get()) {
@@ -152,8 +141,8 @@ class MyVpnService : VpnService() {
                         val raw = pkt.data.copyOf(pkt.length)
                         val (type, payload) = Protocol.unpack(cipher.decrypt(raw))
                         if (type == Protocol.TYPE_DATA) tunOut.write(payload)
-                    } catch (_: java.net.SocketTimeoutException) {
-                        // normal — loop back to check running flag
+                    } catch (e: java.net.SocketTimeoutException) {
+                        // normal loop
                     } catch (e: Exception) {
                         if (running.get()) Log.w(TAG, "UDP→TUN: $e")
                     }
@@ -183,8 +172,6 @@ class MyVpnService : VpnService() {
         stopSelf()
     }
 
-    // -------------------------------------------------------------------------
-
     private fun broadcast(error: String?) {
         sendBroadcast(
             Intent("com.vpn.VPN_STATUS").apply {
@@ -194,40 +181,24 @@ class MyVpnService : VpnService() {
         )
     }
 
-    private fun createNotificationChannel() {
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        if (nm.getNotificationChannel(NOTIF_CHANNEL) == null) {
-            nm.createNotificationChannel(
-                NotificationChannel(
-                    NOTIF_CHANNEL,
-                    "VPN Status",
-                    NotificationManager.IMPORTANCE_LOW
-                ).apply { description = "Python VPN active connection" }
-            )
-        }
-    }
-
+    @Suppress("DEPRECATION")
     private fun buildNotification(): Notification {
         val stopPi = PendingIntent.getService(
             this, 0,
             Intent(this, MyVpnService::class.java).setAction(ACTION_DISCONNECT),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT
         )
         val openPi = PendingIntent.getActivity(
             this, 0,
             Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT
         )
-        return Notification.Builder(this, NOTIF_CHANNEL)
+        return Notification.Builder(this)
             .setContentTitle("Python VPN — متصل / Connected")
             .setContentText("النفق المشفر نشط / Encrypted tunnel active")
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentIntent(openPi)
-            .addAction(
-                android.R.drawable.ic_media_pause,
-                "قطع / Disconnect",
-                stopPi
-            )
+            .addAction(android.R.drawable.ic_media_pause, "قطع / Disconnect", stopPi)
             .setOngoing(true)
             .build()
     }
