@@ -1,0 +1,4 @@
+-keep class org.bouncycastle.crypto.generators.SCrypt { *; }
+-keep class org.bouncycastle.crypto.** { *; }
+-dontwarn org.bouncycastle.**
+-dontwarn javax.naming.**
