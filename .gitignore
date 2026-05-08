@@ -3,3 +3,6 @@ __pycache__/
 vpn/__pycache__/
 config/server.yaml
 config/client.yaml
+android/local.properties
+android/build/
+android/app-debug.apk.idsig
